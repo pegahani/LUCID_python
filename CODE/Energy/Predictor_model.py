@@ -16,6 +16,7 @@ from keras import layers, optimizers
 
 from time_wrapping import normal_dtw
 
+#real data prepared by Phillipe
 adr = "../../Data/energy_data/phillipe/UF1_ COM_ACIER_T1_Train.xlsx"
 
 df = pandas.read_excel(adr)
@@ -122,6 +123,7 @@ model_plus.add(model)
 
 # Add new layers
 #model_plus.add(layers.Flatten())
+
 model_plus.add(Dense(32, activation='relu'))
 model_plus.add(Dense(32, activation='relu'))
 model_plus.add(layers.Dense(1))
@@ -134,7 +136,7 @@ model_plus.summary()
 model_plus.load_weights('model_plus.h5')
 
 predictions_after_real = model_plus.predict(normed_ncsimul_x_test)#.flatten()
-exp_after_real = normal_dtw(predictions_after_real, 1)
+exp_after_real = normal_dtw(predictions_after_real, 100)
 exp_after_real.average_x()
 exp_after_real.total_normalisation()
 
@@ -146,7 +148,7 @@ plt.plot(exp_after_real.new_real_x, exp_after_real.new_real_normal)
 plt.plot(exp_after_real.ncsimul_x_test, exp_after_real.ncsimul_y_normal)
 plt.show()
 
-exp_after_real.dtw_(length_min=0, length_max=5000)
+exp_after_real.dtw_(length_min=0, length_max=50)
 # plt.plot(y_, ncsimul_y_real)
 # plt.plot(y_, test_predictions)
 # plt.show()

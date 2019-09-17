@@ -106,16 +106,17 @@ df_matrix = np.concatenate(args)
 #print(df_matrix.shape)
 """
 #
-# with open('real_data.pickle', 'wb') as handle:
-#     pickle.dump(df_matrix, handle, protocol=pickle.HIGHEST_PROTOCOL)
-#
+with open('real_data.pickle', 'wb') as handle:
+    pickle.dump(df_matrix, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 # "upload ncsimul curve"
-# with open('ncsimul_data.pickle', 'rb') as handle:
-#     ncsimul_y_test = pickle.load(handle)
-#
-# exp = normal_dtw(real_y_test, ncsimul_y_test)
-# exp.average_x()
-# exp.total_normalisation()
+with open('ncsimul_data.pickle', 'rb') as handle:
+    ncsimul_y_test = pickle.load(handle)
+
+print(real_y_test.shape)
+exp = normal_dtw(real_y_test, ncsimul_y_test)
+exp.average_x()
+exp.total_normalisation()
 #
 # plt.plot(exp.new_real_x, exp.new_real)
 # plt.plot(exp.ncsimul_x_test, exp.ncsimul)

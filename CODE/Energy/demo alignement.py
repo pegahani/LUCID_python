@@ -73,7 +73,6 @@ def dtw(x, y, dist, warp=1, w=inf, s=1.0):
         path = _traceback(D0)
     return D1[-1, -1] / sum(D1.shape), C, D1, path
 
-
 def accelerated_dtw(x, y, dist, warp=1):
     """
     Computes Dynamic Time Warping (DTW) of two sequences in a faster way.
@@ -113,7 +112,6 @@ def accelerated_dtw(x, y, dist, warp=1):
     else:
         path = _traceback(D0)
     return D1[-1, -1] / sum(D1.shape), C, D1, path
-
 
 def _traceback(D):
     i, j = array(D.shape) - 2
