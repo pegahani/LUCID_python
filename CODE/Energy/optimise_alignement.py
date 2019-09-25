@@ -1,18 +1,14 @@
-
-"""
-tested ncsimul: ACIER_S_1_ncsimul_F4042R.T22.025.Z03.10.csv
-tested real:     ACIER_S_1_real_F4042R.T22.025.Z03.10.csv"""
+import csv
+import itertools
 import numpy as np
 import pandas
 import matplotlib.pyplot as plt
 from scipy.misc import electrocardiogram
 from scipy.signal import find_peaks
-from dtaidistance import dtw
-from dtaidistance import dtw_visualisation as dtwvis
 
 adr = "../../Data/energy_data/sac_data/GP2R/"
-ncsimul_file = "ACIER_S_1_ncsimul_F4042R.T22.025.Z03.10.csv"
-real_file = "ACIER_S_1_real_F4042R.T22.025.Z03.10.csv"
+# ncsimul_file = "ACIER_S_1_ncsimul_F4042R.T22.025.Z03.10.csv"
+# real_file = "ACIER_S_1_real_F4042R.T22.025.Z03.10.csv"
 
 class normalise:
     "x normalisation"
@@ -51,20 +47,16 @@ class normalise:
         return n_array
 
 class alignment:
-    def __init__(self, real_file, ncsimul_file):
-        self.real_file = real_file
-        self.ncsimul_file = ncsimul_file
+    def __init__(self, real_, ncsimul_):
 
-        df_ncsimul= pandas.read_csv(filepath_or_buffer = adr+"NCSIMUL/"+self.ncsimul_file, sep = ';')
-        self.ncsimul_ = df_ncsimul.values
         "Pc2"
-        self.ncsimul = self.ncsimul_[:,56]
+        self.ncsimul_ = ncsimul_
+        self.ncsimul = ncsimul_[:,56]#ncsimul_
         self.ncsimul_index_ = range(len(self.ncsimul))
 
-        df_real = pandas.read_csv(filepath_or_buffer = adr + "Real/"+ self.real_file, sep= ';')
-        real_ = df_real.values
         'first column'
-        self.real = real_[:,0]
+        self.real_ = real_
+        self.real = real_[:,0] #real_
         self.real_index_ = range(len(self.real))
 
         self.normali = normalise()
@@ -126,17 +118,6 @@ class alignment:
 
         return normal_real, normal_ncsimul
 
-    def prep_dtw(self, normal_real_, normal_ncsimul_, min, max):
-
-        path = dtw.warping_path(normal_real_[min:max], normal_ncsimul_[min:max])
-        distance, paths = dtw.warping_paths(normal_real_[min:max], normal_ncsimul_[min:max])
-        dtwvis.plot_warping(normal_real_[min:max], normal_ncsimul_[min:max], path, filename="warp_results.png")
-
-        best_path = dtw.best_path(paths)
-        dtwvis.plot_warpingpaths(normal_real_[min:max], normal_ncsimul_[min:max], paths, best_path, filename="best_path_results.png")
-
-        return path, distance
-
     def concatenate_lists(self, index_list):
         mylist = [index_list[0][0], index_list[-1][1]]
         return mylist
@@ -153,85 +134,68 @@ class alignment:
 
         return real_to_ncsimul_index
 
-alg = alignment(real_file, ncsimul_file)
-real_, real_index_, ncsimul, ncsimul_index = alg.prepare_remove(300,10)
-real, real_index_after_smooth = alg.prepare_smooth_x(real_, ncsimul)
-normal_real, normal_ncsimul = alg.prepare_normal_y(real, ncsimul)
+    def replot_after_dtw(self, ncsimul_to_real_, real_index__, ncsimul_index_):
+        new_x = []
+        new_y = []
 
-plt.plot(normal_real, color='blue')
-plt.plot(normal_ncsimul, color='red')
-plt.show()
+        for (key, values) in ncsimul_to_real_.items():
+            new_x.append(ncsimul_index_[key])
+            new_y.append(np.mean(list(itertools.chain(
+                [[self.real[real_index__[item[0]]], self.real[real_index__[item[-1]]]]
+                 for item in values]))))
+            # new_y.append(np.mean([origin_real[real_index_[values[0][0]]], origin_real[real_index_[values[-1][-1]]]]))
 
-pathi, distanci = alg.prep_dtw(normal_real, normal_ncsimul, 0, 100)
-print(alg.real_mapping_ncsimul_indexes(pathi, real_index_after_smooth))
+        plt.plot(new_x, new_y)
+        plt.plot(self.ncsimul)
+        plt.show()
 
-"""other codes. TWe don't use them at the moment."""
-def filter_frequency(input):
+        plt.plot(new_x, self.normali.normalize_y(new_y))
+        plt.plot(self.normali.normalize_y((self.ncsimul)))
+        plt.show()
+        return
 
-    fourier = np.fft.fft(input)
-    n = input.size
-    freq = np.fft.fftfreq(n)
-    return freq
+    def re_assign_after_alignment(self, ncsimul_to_real_, real_index__, ncsimul_index_):
+        new_nc = []
+        new_real = []
 
-def filter_diff(input):
-    _d = np.diff(input)
-    return _d
+        for (key, values) in ncsimul_to_real_.items():
+            nc_equiv = ncsimul_index_[key]
+            tempo = []
+            for item in values:
+                tempo = tempo + [real_index__[i] for i in range(item[0], item[-1])]
 
-def filter(input, epsilon, which_):
-    x_ = [i for i in range(len(input))]
-    try:
-        which_ in ['diff', 'freq']
-    except TypeError:
-        print('the selected filter type not exist')
-    else:
-        if which_ == 'diff':
-            _d = filter_diff(input)
-        elif which_ == 'freq':
-            _d = filter_frequency(input)
+            new_real = new_real + tempo
+            new_nc = new_nc + [nc_equiv]*len(tempo)
 
-    #print(_d)
-    n = len(_d)
-    plt.plot(x_[0:n], input[0:n])
-    plt.show()
+        return new_nc, new_real
 
-    x_filterd = [i for i in range(len(_d)) if np.abs(_d[i])<epsilon ]
-    #print(len(x_filterd))
-    #print(x_filterd)
+    def joint_real_to_ncsimul(self, material, sequence, new_nc, new_real):
 
-    plt.scatter(x_real[0:n], _d[0:n])
-    plt.plot(x_[0:n], [0]*n)
-    plt.plot(x_[0:n], [epsilon]*n)
-    plt.plot(x_[0:n], [-1*epsilon]*n)
-    plt.show()
+        # plt.plot([self.real[j] for j in new_real], color='blue')
+        # plt.plot([self.ncsimul[k] for k in new_nc], color = 'red')
+        # plt.show()
 
-    plt.scatter(x_filterd, [_d[j] for j in x_filterd])
-    plt.show()
+        with open(adr + 'Juncture/' + str(material) + '_' + str(sequence)+ '.csv', mode='w') as _file:
+            _writer = csv.writer(_file, delimiter=';')#, quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-    print(len(x_filterd)/len(input))
+            _writer.writerow(['N Brut',	'N Outil',	'N Bloc',	'Cycle usinage','Tabs',	'T', 'Trel',
+                                  'Vc', 'fz', 'h', 'Ae', 'Ap', 'AD', 'Du', 'V',	'Angle', 'Q', 'Temps Outils', 'Sequence outil', 'AxisCoordX',
+                                 'AxisCoordY', 'AxisCoordZ', 'A', 'B', 'C', 'TcpX',	'TcpY',	'TcpZ',	'ToolAxisX', 'ToolAxisY', 'ToolAxisZ', 'S',	'TypeIntersect',
+                                 'TypeMovement', 'TypeInOut', 'ToolRef', 'ToolFamilly',	'ToolType',	'Dc', 'Lc',	'Rb', 'F',	'Record1',	'Record2', 'RecordPassant',
+                                 'RecordPrecPassant', 'DataPhase',	'InteractMode',	'ContactMode',	'AeEquiv',	'ApEquiv',	'Wc1',	'Pc1',	'Tc1',
+                                 'Ft1',	'Wc2',	'Pc2',	'Tc2',	'Ft2', 'Pcreal'])
 
-    n2 = 1000 #len(input)
-    plt.plot(x_[0:n2], input[0:n2])
-    for j in x_filterd:
-        if j < n2:
-            plt.axvline(x=j, color='gray')
-        else:
-            break
-    plt.show()
-    return
-
-#filter(real, 0.0001, 'diff')
-
-# x = real
-# peaks, _ = find_peaks(x, height=300)
-# plt.plot(x)
-# plt.plot(peaks, x[peaks], "x")
-# plt.plot(np.zeros_like(x), "--", color="gray")
-# plt.show()
-#
-# plt.plot(x[peaks])
-# plt.show()
-
-
+            try:
+                len(new_nc) == len(new_real)
+            except:
+                raise NameError('the new_real and new_nc should have the same length')
+            else:
+                print(len(new_nc))
+                for i in range(len(new_real)):
+                    l = list(self.ncsimul_[new_nc[i]])
+                    l.append(self.real_[new_real[i],0])
+                    _writer.writerow(l)
+        return
 
 
 
