@@ -21,11 +21,15 @@ class normalise:
         new_real = []
         new_index = []
         counter = 0
-        while counter * step < len(input_curve):
+
+        comparison = int(len(input_curve)/step)*step
+        while counter * step < comparison:
             new_real.append(np.mean(input_curve[counter * step:(counter + 1) * step]))
             new_index.append([counter * step, (counter + 1) * step])
             counter += 1
+        new_index.append([counter * step, len(input_curve)])
         new_real = np.asarray(new_real)
+
         return new_real, new_index
 
     "y normalization"
@@ -47,16 +51,21 @@ class normalise:
         return n_array
 
 class alignment:
-    def __init__(self, real_, ncsimul_):
+    def __init__(self, real_, ncsimul_, only_dtw):
 
-        "Pc2"
-        self.ncsimul_ = ncsimul_
-        self.ncsimul = ncsimul_[:,56]#ncsimul_
+        if only_dtw:
+            self.ncsimul = ncsimul_
+            self.real = real_
+        else:
+            "PC2"
+            self.ncsimul_ = ncsimul_
+            self.ncsimul = ncsimul_[:,56]
+
+            'first column'
+            self.real_ = real_
+            self.real = real_[:, 0]
+
         self.ncsimul_index_ = range(len(self.ncsimul))
-
-        'first column'
-        self.real_ = real_
-        self.real = real_[:,0] #real_
         self.real_index_ = range(len(self.real))
 
         self.normali = normalise()
@@ -82,7 +91,6 @@ class alignment:
                 changed_index.append(i)
                 changed_index.append(i + 1)
         changed_index.append(len(input_indexes) - 1)
-        # print(changed_index)
         return groups
 
     def prepare_remove(self, real_threshold, nc_threshold):
@@ -94,8 +102,6 @@ class alignment:
 
         # print(groups_ncsimul)
         # print(groups_real)
-        print(len(groups_ncsimul))
-        print(len(groups_real))
 
         plt.plot(self.real)
         plt.plot([real_threshold] * len(self.real), "--", color="red")
@@ -107,10 +113,18 @@ class alignment:
 
         return filter_real, real_index, filter_ncsimul, ncsimul_index
 
-    def prepare_smooth_x(self, input_real, input_ncsimul):
-        window = round(len(input_real) / len(input_ncsimul))
-        input_smooth, indexes = self.normali.average_x(input_real, window)
-        return input_smooth, indexes
+    def prepare_smooth_x(self, input_real, input_ncsimul, given_window = False):
+
+        input_smooth_real, indexes_real, input_smooth_ncsimul, indexes_ncsimul = None, None, None, None
+        if not given_window:
+            window = round(len(input_real) / len(input_ncsimul))
+        else:
+            window = round(len(input_real)/3000)
+            input_smooth_ncsimul, indexes_ncsimul = self.normali.average_x(input_ncsimul, window)
+
+        input_smooth_real, indexes_real = self.normali.average_x(input_real, window)
+
+        return input_smooth_real, indexes_real, input_smooth_ncsimul, indexes_ncsimul
 
     def prepare_normal_y(self, real_, ncsimul_):
         normal_ncsimul = self.normali.normalize_y(ncsimul_)
@@ -123,6 +137,7 @@ class alignment:
         return mylist
 
     def real_mapping_ncsimul_indexes(self, path_, real_indexes):
+
         real_to_ncsimul_index = {}
         for x, y in path_:
             if y in real_to_ncsimul_index:
@@ -134,38 +149,56 @@ class alignment:
 
         return real_to_ncsimul_index
 
-    def replot_after_dtw(self, ncsimul_to_real_, real_index__, ncsimul_index_):
-        new_x = []
-        new_y = []
+    def replot_after_dtw(self, ncsimul_to_real_, real_index__, ncsimul_index_, only_dtw):
+        new_nc = []
+        new_real = []
 
-        for (key, values) in ncsimul_to_real_.items():
-            new_x.append(ncsimul_index_[key])
-            new_y.append(np.mean(list(itertools.chain(
-                [[self.real[real_index__[item[0]]], self.real[real_index__[item[-1]]]]
-                 for item in values]))))
-            # new_y.append(np.mean([origin_real[real_index_[values[0][0]]], origin_real[real_index_[values[-1][-1]]]]))
+        if not only_dtw:
+            for (key, values) in ncsimul_to_real_.items():
+                new_nc.append(ncsimul_index_[key])
+                new_real.append(np.mean(list(itertools.chain(
+                    [[self.real[real_index__[item[0]]], self.real[real_index__[item[-1]]]]
+                        for item in values]))))
+                # new_y.append(np.mean([origin_real[real_index_[values[0][0]]], origin_real[real_index_[values[-1][-1]]]]))
 
-        plt.plot(new_x, new_y)
+        elif only_dtw:
+            for (key, values) in ncsimul_to_real_.items():
+                equiv_interval = ncsimul_index_[key]
+                new_nc.append(list(itertools.chain(equiv_interval)))
+                new_real.append(np.mean(list(itertools.chain(
+                    [[self.real[real_index__[item[0]]], self.real[real_index__[item[-1]]]]
+                        for item in values]))))
+
+        plt.plot(new_nc, new_real)
         plt.plot(self.ncsimul)
         plt.show()
 
-        plt.plot(new_x, self.normali.normalize_y(new_y))
+        plt.plot(new_nc, self.normali.normalize_y(new_real))
         plt.plot(self.normali.normalize_y((self.ncsimul)))
         plt.show()
         return
 
-    def re_assign_after_alignment(self, ncsimul_to_real_, real_index__, ncsimul_index_):
+    def re_assign_after_alignment(self, ncsimul_to_real_, real_index__, ncsimul_index_, ncsimul_index_after_smooth, only_dtw = False):
         new_nc = []
         new_real = []
+        nc_equiv = None
 
         for (key, values) in ncsimul_to_real_.items():
-            nc_equiv = ncsimul_index_[key]
+            if not only_dtw:
+                nc_equiv = ncsimul_index_[key]
+            else:
+                equiv_interval = ncsimul_index_after_smooth[key]
+                tempo2 = []
+                tempo2 = tempo2 + [ncsimul_index_[j] for j in range(equiv_interval[0],equiv_interval[-1])]# equiv_interval[-1])]
+                new_nc = new_nc + tempo2
+
             tempo = []
             for item in values:
-                tempo = tempo + [real_index__[i] for i in range(item[0], item[-1])]
-
+                tempo = tempo + [real_index__[i] for i in range(item[0], item[-1])]#item[-1])]
             new_real = new_real + tempo
-            new_nc = new_nc + [nc_equiv]*len(tempo)
+
+            if not only_dtw:
+                new_nc = new_nc + [nc_equiv]*len(tempo)
 
         return new_nc, new_real
 

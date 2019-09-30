@@ -15,13 +15,6 @@ real_file = "ACIER_S_1_real_F4042R.T22.025.Z03.10.csv"
 normala = normalise()
 
 def prep_dtw(y, y_, min, max, file_):
-    print('y')
-    print(y)
-    print('y_')
-    print(y_)
-    print(type(y_))
-    print(y_.shape)
-
     try:
         len(y) >= max and  len(y_) >= max
     except:
@@ -45,41 +38,57 @@ def prepare_data_inputs(real_file, ncsimul_file):
     real_ = df_real.values
     return real_, ncsimul_
 
-def compute_alignment_score(alignment_object, low_bound_real, low_bound_nc):
+def compute_alignment_score(alignment_object, low_bound_real, low_bound_nc, given_window, only_dtw, name):
 
-    real_, real_index_, ncsimul, ncsimul_index = alignment_object.prepare_remove(low_bound_real, low_bound_nc)
-    real, real_index_after_smooth = alignment_object.prepare_smooth_x(real_, ncsimul)
+    if not only_dtw:
+        real_, real_index_, ncsimul_, ncsimul_index = alignment_object.prepare_remove(low_bound_real, low_bound_nc)
+    else:
+        real_, real_index_, ncsimul_, ncsimul_index = alignment_object.real, alignment_object.real_index_,\
+                                                      alignment_object.ncsimul,alignment_object.ncsimul_index_
+
+        real_index_ = [k for k in real_index_]
+        ncsimul_index = [l for l in ncsimul_index]
+
+    real, real_index_after_smooth, ncsimul, ncsimul_index_after_smooth = alignment_object.prepare_smooth_x(real_, ncsimul_, given_window)
+    if ncsimul is None:
+        ncsimul = ncsimul_
+
     normal_real, normal_ncsimul = alignment_object.prepare_normal_y(real, ncsimul)
 
     plt.plot(normal_real, color='blue')
     plt.plot(normal_ncsimul, color='red')
     plt.show()
 
-    pathi, distanci = alignment_object.prep_dtw(normal_real, normal_ncsimul, 0, len(normal_ncsimul), '')
+    pathi, distanci = prep_dtw(normal_real, normal_ncsimul, 0, len(normal_ncsimul), name)# 100, "")
     ncsimul_to_real = alignment_object.real_mapping_ncsimul_indexes(pathi, real_index_after_smooth)
 
     """draw graphs after alignment"""
     print(distanci)
-    new_nc, new_real = alignment_object.re_assign_after_alignment(ncsimul_to_real, real_index_, ncsimul_index)
-    alignment_object.joint_real_to_ncsimul('Acier', '1', new_nc, new_real)
-    #alignment_object.replot_after_dtw(ncsimul_to_real, real_index_, ncsimul_index)
+    new_nc, new_real = alignment_object.re_assign_after_alignment(ncsimul_to_real, real_index_, ncsimul_index, ncsimul_index_after_smooth, only_dtw)
+
+    # alignment_object.joint_real_to_ncsimul('Acier', '1', new_nc, new_real)
+    if not only_dtw:
+        alignment_object.replot_after_dtw(ncsimul_to_real, real_index_, ncsimul_index, only_dtw)
+    else:
+        alignment_object.replot_after_dtw(ncsimul_to_real, real_index_, ncsimul_index_after_smooth, only_dtw)
 
     return
 
 
 real_data, ncsimul_data = prepare_data_inputs(real_file, ncsimul_file)
-alg = alignment(real_data, ncsimul_data)#(real_data[:,0], ncsimul_data[:,56])
-#alg.joint_real_to_ncsimul('Acier', 'sequence1')
-#compute_alignment_score(alignment_object = alg, low_bound_real=300, low_bound_nc= 10)
+alg = alignment(real_data, ncsimul_data, only_dtw = None)
+compute_alignment_score(alignment_object = alg, low_bound_real=300, low_bound_nc= 10,
+                        given_window = False, only_dtw= False, name = 'real_vs_ncsimul')
 
 """learning on F S Ae Ap parameters"""
 pred = predictions()
-reg_ln = pred.train_COM()
+pred.prep_COM()
+
 #to_test_X = np.column_stack((ncsimul_data[:,41], ncsimul_data[:,31], ncsimul_data[:,10:12]))
 #to_test_Y = ncsimul_data[:,56]
 
 juncture_file = 'Acier_1.csv'
-df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';')
+df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
 juncture_data = df_junture.values
 #
 to_test_X = np.column_stack((juncture_data[:,41], juncture_data[:,31], juncture_data[:,10:12]))
@@ -93,11 +102,15 @@ to_test_Y = juncture_data[:,59]
 #if we test the NCSIMUL set here
 #to_test_Y = juncture_data[:,56]
 #
-y_pred = pred.predict_on_COM(x_test = to_test_X, y_test = to_test_Y)
+reg_ln = pred.train_LR(x_tarin=pred.x_tarin_COM, y_train=pred.y_train_COM)
+y_pred = pred.predict_on_LR(x_test = to_test_X, y_test = to_test_Y, regr_=reg_ln)
 
 plt.plot(normala.normalize_y(to_test_Y))
 plt.plot(normala.normalize_y(y_pred))
 plt.show()
 
-prep_dtw(y= to_test_Y, y_= list(y_pred), min=0, max=len(y_pred), file_='LR_COM_REAL')
+alg_after = alignment(real_ = to_test_Y, ncsimul_ = y_pred, only_dtw = True)
+compute_alignment_score(alignment_object = alg_after, low_bound_real=None, low_bound_nc= None, given_window = True,
+                        only_dtw = True, name = "real_vs_pred_real_LR")
+# prep_dtw(y= to_test_Y, y_= y_pred.reshape(len(y_pred),), min=0, max=len(y_pred), file_='LR_COM_REAL')
 

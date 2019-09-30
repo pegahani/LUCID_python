@@ -25,20 +25,22 @@ class predictions:
         df_ar_tp = df.values
         self.df_COM = df_ar_tp[0:47, ]
 
-    def train_COM(self):
+    def prep_COM(self):
         "parameters for training: Ap, Ae, F, Z and test: Pc2"
         self.x_tarin_COM = self.df_COM[:, 0:4]
         y_train = self.df_COM[:, 6]
         self.y_train_COM = y_train.reshape(47, 1)
-
-        # Create linear regression object
-        self.regr_COM = linear_model.LinearRegression()
-        # Train the model using the training sets
-        self.regr_COM.fit(self.x_tarin_COM, self.y_train_COM)
         return
 
-    def predict_on_COM(self, x_test, y_test):
-        _y_pred = self.regr_COM.predict(x_test)
+    def train_LR(self,x_tarin,  y_train):
+        # Create linear regression object
+        regr = linear_model.LinearRegression()
+        # Train the model using the training sets
+        regr.fit(x_tarin, y_train)
+        return regr
+
+    def predict_on_LR(self, x_test, y_test, regr_):
+        _y_pred = regr_.predict(x_test)
         plt.plot(_y_pred)
         plt.plot(y_test)
         plt.show()
