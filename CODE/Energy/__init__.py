@@ -8,9 +8,12 @@ from dtaidistance import dtw
 from dtaidistance import dtw_visualisation as dtwvis
 import numpy as np
 
+from sim import learn_nn
+
 adr = "../../Data/energy_data/sac_data/GP2R/"
 ncsimul_file = "ACIER_S_1_ncsimul_F4042R.T22.025.Z03.10.csv"
 real_file = "ACIER_S_1_real_F4042R.T22.025.Z03.10.csv"
+juncture_file = 'Acier_1.csv'
 
 normala = normalise()
 
@@ -74,43 +77,45 @@ def compute_alignment_score(alignment_object, low_bound_real, low_bound_nc, give
 
     return
 
-
-real_data, ncsimul_data = prepare_data_inputs(real_file, ncsimul_file)
-alg = alignment(real_data, ncsimul_data, only_dtw = None)
-compute_alignment_score(alignment_object = alg, low_bound_real=300, low_bound_nc= 10,
-                        given_window = False, only_dtw= False, name = 'real_vs_ncsimul')
-
-"""learning on F S Ae Ap parameters"""
-pred = predictions()
-pred.prep_COM()
-
-#to_test_X = np.column_stack((ncsimul_data[:,41], ncsimul_data[:,31], ncsimul_data[:,10:12]))
-#to_test_Y = ncsimul_data[:,56]
-
-juncture_file = 'Acier_1.csv'
-df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
-juncture_data = df_junture.values
+# real_data, ncsimul_data = prepare_data_inputs(real_file, ncsimul_file)
+# alg = alignment(real_data, ncsimul_data, only_dtw = None)
+# compute_alignment_score(alignment_object = alg, low_bound_real=300, low_bound_nc= 10,
+#                         given_window = False, only_dtw= False, name = 'real_vs_ncsimul_')
 #
-to_test_X = np.column_stack((juncture_data[:,41], juncture_data[:,31], juncture_data[:,10:12]))
-to_test_Y = juncture_data[:,59]
+# """learning on F S Ae Ap parameters"""
+# pred = predictions()
+# pred.prep_COM()
+#
+# to_train_X = np.column_stack((ncsimul_data[:,41], ncsimul_data[:,31], ncsimul_data[:,10:12]))
+# #to_train_Y = ncsimul_data[:,56]
+#
+# df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
 
-"real powers"
-# plt.plot(juncture_data[:,59], color = 'blue')
-"ncsimul powers"
-# plt.plot(juncture_data[:,56], color = 'red')
+
+
+# #*****************************************************
+# juncture_data = df_junture.values
+# #
+# to_test_X = np.column_stack((juncture_data[:,41], juncture_data[:,31], juncture_data[:,10:12]))
+# to_train_Y = juncture_data[:,56]
+# to_test_Y = juncture_data[:,59]
+#
+# #reg_ln = pred.train_LR(x_tarin=pred.x_tarin_COM, y_train=pred.y_train_COM)
+# reg_ln = pred.train_LR(x_tarin=to_test_X, y_train=to_train_Y)
+# y_pred = pred.predict_on_LR(x_test = to_test_X, y_test = to_test_Y, regr_=reg_ln)
+#
+# plt.plot(normala.normalize_y(to_test_Y))
+# plt.plot(normala.normalize_y(y_pred))
 # plt.show()
-#if we test the NCSIMUL set here
-#to_test_Y = juncture_data[:,56]
 #
-reg_ln = pred.train_LR(x_tarin=pred.x_tarin_COM, y_train=pred.y_train_COM)
-y_pred = pred.predict_on_LR(x_test = to_test_X, y_test = to_test_Y, regr_=reg_ln)
+# alg_after = alignment(real_ = to_test_Y, ncsimul_ = y_pred, only_dtw = True)
+# compute_alignment_score(alignment_object = alg_after, low_bound_real=None, low_bound_nc= None, given_window = True,
+#                         only_dtw = True, name = "real_vs_pred_real_LR_")
+# # prep_dtw(y= to_test_Y, y_= y_pred.reshape(len(y_pred),), min=0, max=len(y_pred), file_='LR_COM_REAL')
 
-plt.plot(normala.normalize_y(to_test_Y))
-plt.plot(normala.normalize_y(y_pred))
-plt.show()
-
-alg_after = alignment(real_ = to_test_Y, ncsimul_ = y_pred, only_dtw = True)
-compute_alignment_score(alignment_object = alg_after, low_bound_real=None, low_bound_nc= None, given_window = True,
-                        only_dtw = True, name = "real_vs_pred_real_LR")
-# prep_dtw(y= to_test_Y, y_= y_pred.reshape(len(y_pred),), min=0, max=len(y_pred), file_='LR_COM_REAL')
-
+df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
+df_ncsimul = pandas.read_csv(filepath_or_buffer=adr + "NCSIMUL/" + ncsimul_file, sep=';')
+object_ = learn_nn(df_junture)
+# object_ = learn_nn(df_ncsimul)
+train_, test_ = object_.split_train_test()
+object_.train_on_nn(train_, test_)

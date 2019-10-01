@@ -4,7 +4,7 @@ import numpy
 import pandas
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn import datasets, linear_model
+from sklearn import datasets, linear_model, metrics
 from sklearn.svm import SVR
 from numpy import loadtxt
 
@@ -41,6 +41,11 @@ class predictions:
 
     def predict_on_LR(self, x_test, y_test, regr_):
         _y_pred = regr_.predict(x_test)
+
+        print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, _y_pred))
+        print('Mean Squared Error:', metrics.mean_squared_error(y_test, _y_pred))
+        print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, _y_pred)))
+
         plt.plot(_y_pred)
         plt.plot(y_test)
         plt.show()
@@ -164,25 +169,7 @@ class predictions:
 # # plt.plot(y_, ncsimul_y_real)
 # # plt.plot(y_, test_predictions)
 # # plt.show()
-#
-#
-# # print('********')
-# # TA_1S = df_ar[df_ar[:,0]== 'TA1S']
-# # print('TA_1S')
-# # print(TA_1S.shape)
-# #
-# # x_tarin = TA_1S[:,4:8]
-# # y_train = TA_1S[:, 16]
-# # # Create linear regression object
-# # regr = linear_model.LinearRegression()
-# # # Train the model using the training sets
-# # regr.fit(x_tarin, y_train)
-# # _y_pred = regr.predict(ncsimul_x_test)
-# # plt.title("TA_1S")
-# # plt.plot(y_, _y_pred)
-# #
-# # plt.plot(y_, ncsimul_y_test)
-# # plt.show()
+
 
 
 
