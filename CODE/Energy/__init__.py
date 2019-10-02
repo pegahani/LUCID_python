@@ -10,10 +10,14 @@ import numpy as np
 
 from sim import learn_nn
 
+column_names = ['Ae','Ap','F','S','V','AD','Angle','fz','Vc','Q','h','InteractMode','ContactMode','AeEquiv','ApEquiv','TcpX','TcpY','TcpZ','Pc2', 'Pcreal']
+source_com = ['Ae', 'Ap', 'F', 'S']
+
 adr = "../../Data/energy_data/sac_data/GP2R/"
 ncsimul_file = "ACIER_S_1_ncsimul_F4042R.T22.025.Z03.10.csv"
 real_file = "ACIER_S_1_real_F4042R.T22.025.Z03.10.csv"
 juncture_file = 'Acier_1.csv'
+adr_COM = "../../Data/energy_data/phillipe/UF1_ COM_ACIER_T1_Train.xlsx"
 
 normala = normalise()
 
@@ -78,9 +82,9 @@ def compute_alignment_score(alignment_object, low_bound_real, low_bound_nc, give
     return
 
 # real_data, ncsimul_data = prepare_data_inputs(real_file, ncsimul_file)
-# alg = alignment(real_data, ncsimul_data, only_dtw = None)
-# compute_alignment_score(alignment_object = alg, low_bound_real=300, low_bound_nc= 10,
-#                         given_window = False, only_dtw= False, name = 'real_vs_ncsimul_')
+# # alg = alignment(real_data, ncsimul_data, only_dtw = None)
+# # compute_alignment_score(alignment_object = alg, low_bound_real=300, low_bound_nc= 10,
+# #                         given_window = False, only_dtw= False, name = 'real_vs_ncsimul_')
 #
 # """learning on F S Ae Ap parameters"""
 # pred = predictions()
@@ -89,14 +93,13 @@ def compute_alignment_score(alignment_object, low_bound_real, low_bound_nc, give
 # to_train_X = np.column_stack((ncsimul_data[:,41], ncsimul_data[:,31], ncsimul_data[:,10:12]))
 # #to_train_Y = ncsimul_data[:,56]
 #
-# df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
+df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
 
-
-
-# #*****************************************************
-# juncture_data = df_junture.values
+#*****************************************************
+juncture_data = df_junture.values
 # #
-# to_test_X = np.column_stack((juncture_data[:,41], juncture_data[:,31], juncture_data[:,10:12]))
+# # to_test_X = np.column_stack((juncture_data[:,41], juncture_data[:,31], juncture_data[:,10:12]))
+# to_test_X = np.column_stack((juncture_data[:,41], juncture_data[:,31], juncture_data[:,7:13], juncture_data[:,14:17], juncture_data[:,47:51]))
 # to_train_Y = juncture_data[:,56]
 # to_test_Y = juncture_data[:,59]
 #
@@ -113,9 +116,29 @@ def compute_alignment_score(alignment_object, low_bound_real, low_bound_nc, give
 #                         only_dtw = True, name = "real_vs_pred_real_LR_")
 # # prep_dtw(y= to_test_Y, y_= y_pred.reshape(len(y_pred),), min=0, max=len(y_pred), file_='LR_COM_REAL')
 
-df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
+#********************************************
+# df_junture = pandas.read_csv(filepath_or_buffer=adr + "Juncture/" +juncture_file , sep=';', encoding = "ISO-8859-1")
 df_ncsimul = pandas.read_csv(filepath_or_buffer=adr + "NCSIMUL/" + ncsimul_file, sep=';')
 object_ = learn_nn(df_junture)
-# object_ = learn_nn(df_ncsimul)
-train_, test_ = object_.split_train_test()
-object_.train_on_nn(train_, test_)
+# # object_ = learn_nn(df_ncsimul)
+# train_, test_ = object_.split_train_test()
+# object_.train_on_nn(train_, test_)
+
+
+df_COM = pandas.read_excel(adr_COM)
+#df_COM = df_ar_tp[0:47, ]
+#object_.train_diff_nn(COM = df_COM, juncture = df_junture)
+
+# source = column_names[0:15]
+# target = ['Pcreal']
+# object_.first_nn(df_junture, source, target, percentage= 0.2 , weights_name= 'modelReal')
+
+#source = column_names[0:15]
+# source = column_names[0:4]
+# target = ['Pc2']
+# object_.first_nn(df_junture, source, target, percentage= 0.2 , weights_name= 'modelNC_4params')
+
+source_data = source_com
+print(source_data)
+target_data = ['Pc2']
+object_.second_nn(df_COM, source_data, target_data, percentage = 0.05, given_weights  = 'modelNC_4params.h5')
